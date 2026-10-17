@@ -1,25 +1,33 @@
-# 🚀 Lab 3.1 : Exposer une application sur Kubernetes (K3s)
+#  Lab 3.1 : Exposer une application sur Kubernetes (K3s)
+
+![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.36.5-blue?logo=kubernetes)
+![K3s](https://img.shields.io/badge/K3s-Lightweight-orange?logo=rancher)
+![Ubuntu](https://img.shields.io/badge/OS-Ubuntu_22.04_|_24.04-E95420?logo=ubuntu)
+![VirtualBox](https://img.shields.io/badge/Hypervisor-VirtualBox-183A61?logo=virtualbox)
 
 ## 📋 Description du projet
-Ce dépôt contient le compte rendu complet du **Lab 3.1** dont l'objectif est de déployer une application sur un cluster Kubernetes (K3s) et de l'exposer de différentes manières (ClusterIP, NodePort, LoadBalancer). 
+Ce dépôt contient le compte rendu complet du **Lab 3.1** dont l'objectif est de déployer une application sur un cluster Kubernetes (K3s) et de l'exposer de différentes manières (**ClusterIP**, **NodePort**, **LoadBalancer**).
 
 L'application utilisée est **Podinfo** (une petite application web qui renvoie le nom du Pod ayant traité la requête). Cela permet d'observer visuellement la répartition de charge (Load Balancing) entre les différents Pods.
 
 ---
 
-## 🖥️ Environnement de travail
-- **Cluster Kubernetes** : K3s v1.36.5
-- **Topologie** : 1 nœud Master (`control-plane`) et 2 nœuds Workers
-- **Hyperviseur** : Oracle VirtualBox
-- **Systèmes d'exploitation** : Ubuntu 22.04.5 LTS (Master) / Ubuntu 24.04.2 LTS (Workers)
-- **Réseau (Host-Only)** :
-  - `master-2` : `192.168.56.20`
-  - `k3s-worker1` : `192.168.56.31`
-  - `k3s-worker2` : `192.168.56.32`
+##  Environnement de travail
+| Composant | Détails |
+| :--- | :--- |
+| **Cluster** | K3s v1.36.5 |
+| **Topologie** | 1 Master (`control-plane`) + 2 Workers |
+| **Hyperviseur** | Oracle VirtualBox |
+| **OS** | Ubuntu 22.04.5 LTS (Master) / Ubuntu 24.04.2 LTS (Workers) |
+
+**Réseau (Host-Only) :**
+- `master-2` : `192.168.56.20`
+- `k3s-worker1` : `192.168.56.31`
+- `k3s-worker2` : `192.168.56.32`
 
 ---
 
-## 📂 Structure du dépôt
+##  Structure du dépôt
 ```text
 .
 ├── README.md                  # Ce fichier
@@ -52,6 +60,8 @@ kubectl apply -f yaml/podinfo.yaml
 kubectl get pods -o wide
 ✅ Résultat : 3 Pods podinfo sont en statut Running, répartis sur les 3 nœuds du cluster.
 
+https://./captures/01_pods_running.png
+
 Étape 2 : Créer un Service ClusterIP
 Création d'un Service interne qui écoute sur le port 80 et redirige vers le port 9898 des conteneurs.
 
@@ -61,6 +71,8 @@ kubectl get service podinfo-svc
 kubectl get endpoints podinfo-svc
 ✅ Résultat : Le Service obtient la CLUSTER-IP 10.43.158.104. Les endpoints listent bien les 3 adresses IP des Pods.
 
+https://./captures/02_service_endpoints.png
+
 Étape 3 : Joindre le Service par son nom DNS
 Test de résolution DNS depuis un Pod temporaire (busybox).
 
@@ -69,12 +81,16 @@ kubectl run test --rm -it --image=busybox:1.36 --restart=Never -- wget -qO- http
 kubectl run test --rm -it --image=busybox:1.36 --restart=Never -- wget -qO- http://podinfo-svc.tp-k8s.svc.cluster.local
 ✅ Résultat : Les deux appels (nom court et FQDN) renvoient le document JSON de Podinfo contenant le champ "hostname".
 
+https://./captures/03_dns_test_json.png
+
 Étape 4 : Observer la répartition de charge
 Envoi de 6 requêtes successives pour observer la distribution du trafic entre les Pods.
 
 bash
 kubectl run test --rm -it --image=busybox:1.36 --restart=Never -- sh -c 'for i in 1 2 3 4 5 6; do wget -qO- http://podinfo-svc | grep hostname; done'
 ✅ Résultat : Les réponses affichent des noms de Pods différents (ex: pjmjt, d7pnw), prouvant le Load Balancing.
+
+https://./captures/04_load_balancing.png
 
 Étape 5 : Suivre les Pods avec les endpoints
 Observation en temps réel de la mise à jour des endpoints lors d'un scale-up et de la suppression d'un Pod.
@@ -86,7 +102,9 @@ kubectl get endpoints podinfo-svc -w
 kubectl scale deployment podinfo --replicas=5
 kubectl delete pod <nom-du-pod>
 kubectl scale deployment podinfo --replicas=3
-✅ Résultat : Les endpoints passent de 3 à 5 adresses, puis se mettent à jour dynamiquement lors de la suppression du Pod. La capture montre bien l'évolution (+ 1 more...).
+✅ Résultat : Les endpoints passent de 3 à 5 adresses, puis se mettent à jour dynamiquement lors de la suppression du Pod.
+
+https://./captures/05_endpoints_watch.png
 
 Étape 6 : Diagnostiquer un sélecteur incorrect
 Simulation d'une panne en modifiant le sélecteur du Service.
@@ -99,6 +117,8 @@ kubectl describe service podinfo-svc | grep Selector
 kubectl set selector service podinfo-svc app=podinfo
 ✅ Résultat : Les endpoints deviennent <none>, l'appel échoue (Connection refused). Après réparation, les 3 endpoints sont restaurés.
 
+https://./captures/06_diagnostic_panne.png
+
 Étape 7 : Exposer hors du cluster avec NodePort
 Création d'un Service de type NodePort pour exposer l'application sur un port de chaque nœud.
 
@@ -109,6 +129,8 @@ curl http://192.168.56.20:32243
 curl http://192.168.56.31:32243
 ✅ Résultat : L'application répond sur le port 32243 (NodePort), et ce, sur n'importe quel nœud (même ceux n'hébergeant pas de Pod).
 
+https://./captures/07_nodeport_test.png
+
 Étape 8 : Exposer avec LoadBalancer (ServiceLB)
 Création d'un Service de type LoadBalancer (via le contrôleur ServiceLB intégré à K3s).
 
@@ -117,6 +139,8 @@ kubectl apply -f yaml/podinfo-lb.yaml
 kubectl get service podinfo-lb
 kubectl get pods -n kube-system | grep svclb
 ✅ Résultat : Le Service obtient une EXTERNAL-IP (les IPs des nœuds). Des Pods svclb-podinfo-lb-... sont créés dans le namespace kube-system pour agir comme proxys sur le port 8080.
+
+https://./captures/08_loadbalancer_svclb.png
 
 Étape 9 : Joindre un Service depuis un autre namespace
 Test de la résolution DNS depuis le namespace tp-autre.
@@ -127,12 +151,16 @@ kubectl run test -n tp-autre --rm -it --image=busybox:1.36 --restart=Never -- wg
 kubectl run test -n tp-autre --rm -it --image=busybox:1.36 --restart=Never -- wget -qO- http://podinfo-svc.tp-k8s
 ✅ Résultat : Le nom court échoue (bad address), mais le nom qualifié avec le namespace (podinfo-svc.tp-k8s) réussit.
 
+https://./captures/09_namespace_dns.png
+
 Étape 10 : Nettoyage
 bash
 kubectl delete namespace tp-autre
 kubectl delete namespace tp-k8s
 kubectl config set-context --current --namespace=default
 ✅ Résultat : L'environnement est propre, le cluster est prêt pour le prochain TP.
+
+https://./captures/10_nettoyage.png
 
 🧠 Réponses aux questions de réflexion
 1. Quelle est la différence entre port et targetPort dans un Service ?
@@ -160,3 +188,27 @@ ClusterIP : Adresse interne uniquement, accessible depuis le cluster.
 NodePort : Ouvre un port statique sur chaque nœud pour un accès externe basique.
 
 LoadBalancer : Ajoute une adresse externe (via un fournisseur cloud ou ServiceLB dans K3s) pour un accès externe transparent.
+
+⚠️ Difficultés rencontrées et solutions
+Permissions kubeconfig (permission denied sur /etc/rancher/k3s/k3s.yaml) :
+
+Solution : Copie du fichier avec sudo vers ~/.kube/config, puis export KUBECONFIG=~/.kube/config pour que kubectl fonctionne sans sudo.
+
+Workers en statut NotReady après un switch de master :
+
+Solution : Nettoyage des anciens nœuds et secrets sur le master (kubectl delete node, kubectl delete secret), puis redémarrage de l'agent K3s sur les workers pour qu'ils se ré-enregistrent proprement.
+
+Switch entre deux masters (Projet X / Projet Y) :
+
+Solution : Création du script switch-master.sh pour basculer les workers d'un master à l'autre de manière automatisée et sécurisée.
+
+👨‍💻 Auteur
+Nom : [Dabbech]
+
+Prénom : [Narjess]
+
+Classe : [M2 Devops]
+
+GitHub : @Narjess805
+
+Date : Octobre 2026
