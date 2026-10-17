@@ -189,18 +189,6 @@ NodePort : Ouvre un port statique sur chaque nœud pour un accès externe basiqu
 
 LoadBalancer : Ajoute une adresse externe (via un fournisseur cloud ou ServiceLB dans K3s) pour un accès externe transparent.
 
-⚠️ Difficultés rencontrées et solutions
-Permissions kubeconfig (permission denied sur /etc/rancher/k3s/k3s.yaml) :
-
-Solution : Copie du fichier avec sudo vers ~/.kube/config, puis export KUBECONFIG=~/.kube/config pour que kubectl fonctionne sans sudo.
-
-Workers en statut NotReady après un switch de master :
-
-Solution : Nettoyage des anciens nœuds et secrets sur le master (kubectl delete node, kubectl delete secret), puis redémarrage de l'agent K3s sur les workers pour qu'ils se ré-enregistrent proprement.
-
-Switch entre deux masters (Projet X / Projet Y) :
-
-Solution : Création du script switch-master.sh pour basculer les workers d'un master à l'autre de manière automatisée et sécurisée.
 
 👨‍💻 Auteur
 Nom : [Dabbech]
