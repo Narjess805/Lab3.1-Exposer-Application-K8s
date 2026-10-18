@@ -78,8 +78,6 @@ flowchart LR
 │   ├── podinfo-svc.yaml       # Service ClusterIP
 │   ├── podinfo-nodeport.yaml  # Service NodePort
 │   └── podinfo-lb.yaml        # Service LoadBalancer
-├── scripts/
-│   └── switch-master.sh       # Basculement des workers entre les masters
 └── captures/                  # Captures d'écran (preuves d'exécution)
     ├── 01_pods_running.png
     ├── 02_service_endpoints.png
